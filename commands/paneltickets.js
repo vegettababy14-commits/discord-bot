@@ -7,10 +7,6 @@ module.exports = {
 
     async execute(interaction) {
         try {
-            // ✅ Responder rápido para evitar "La aplicación no ha respondido"
-            await interaction.reply({ content: '✅ Panel en proceso...', ephemeral: true });
-
-            // Crear menú
             const menu = new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
                     .setCustomId('ticket_menu')
@@ -22,19 +18,15 @@ module.exports = {
                     ])
             );
 
-            // Enviar el panel visible para todos en el canal
-            await interaction.followUp({
+            // Enviar mensaje visible para todos en el canal
+            await interaction.reply({
                 content: '🎟️ **Centro de Soporte**\nSelecciona una categoría para abrir un ticket:',
                 components: [menu],
                 ephemeral: false
             });
-
         } catch (error) {
-            console.error('Error al enviar panel de tickets:', error);
-
-            if (!interaction.replied) {
-                await interaction.reply({ content: '❌ Hubo un error al enviar el panel de tickets.', ephemeral: true });
-            }
+            console.error('Error en paneltickets:', error);
+            if (!interaction.replied) await interaction.reply({ content: '❌ Error al enviar el panel.', ephemeral: true });
         }
     }
 };
