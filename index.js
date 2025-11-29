@@ -8,6 +8,7 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.DirectMessages,
         GatewayIntentBits.MessageContent
     ]
 });
@@ -15,41 +16,35 @@ const client = new Client({
 // Colección de comandos
 client.commands = new Collection();
 
-// --- Cargar comandos automáticamente ---
+// ----------------------------
+// 🔹 Cargar comandos
+// ----------------------------
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
     const command = require(`./commands/${file}`);
     client.commands.set(command.name, command);
+    console.log(`Comando cargado: ${command.name}`);
 }
 
-// --- Escuchar mensajes para ejecutar comandos ---
-client.on('messageCreate', message => {
-    if (message.author.bot) return; // ignorar bots
-
-    const prefix = '!'; // prefijo de comandos
-    if (!message.content.startsWith(prefix)) return;
-
-    const args = message.content.slice(prefix.length).trim().split(/ +/);
-    const commandName = args.shift().toLowerCase();
-
-    if (!client.commands.has(commandName)) return;
-
-    const command = client.commands.get(commandName);
-    command.execute(message, args);
-});
-
-// --- Cargar eventos automáticamente ---
-const eventFiles = fs.readdirSync('./events').filter(f => f.endsWith('.js'));
+// ----------------------------
+// 🔹 Cargar eventos
+// ----------------------------
+const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));
 
 for (const file of eventFiles) {
     const event = require(`./events/${file}`);
+
     if (event.once) {
         client.once(event.name, (...args) => event.execute(...args, client));
     } else {
         client.on(event.name, (...args) => event.execute(...args, client));
     }
+
+    console.log(`Evento cargado: ${event.name}`);
 }
 
-// Iniciar bot
+// ----------------------------
+// 🔹 Iniciar bot
+// ----------------------------
 client.login(process.env.TOKEN);
