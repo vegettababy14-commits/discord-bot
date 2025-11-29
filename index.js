@@ -1,7 +1,8 @@
-const { Client, GatewayIntentBits, AttachmentBuilder } = require('discord.js');
-const Canvas = require('canvas');
+const { Client, GatewayIntentBits, Collection } = require('discord.js');
 require('dotenv').config();
+const fs = require('fs');
 
+// Crear cliente
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -11,42 +12,44 @@ const client = new Client({
     ]
 });
 
-client.once('ready', () => {
-    console.log(`Bot iniciado como: ${client.user.tag}`);
-});
+// Colección de comandos
+client.commands = new Collection();
 
+// --- Cargar comandos automáticamente ---
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+
+for (const file of commandFiles) {
+    const command = require(`./commands/${file}`);
+    client.commands.set(command.name, command);
+}
+
+// --- Escuchar mensajes para ejecutar comandos ---
 client.on('messageCreate', message => {
-    if (message.author.bot) return;
+    if (message.author.bot) return; // ignorar bots
 
-    if (message.content === '!ping') {
-        message.reply('🏓 Pong!');
+    const prefix = '!'; // prefijo de comandos
+    if (!message.content.startsWith(prefix)) return;
+
+    const args = message.content.slice(prefix.length).trim().split(/ +/);
+    const commandName = args.shift().toLowerCase();
+
+    if (!client.commands.has(commandName)) return;
+
+    const command = client.commands.get(commandName);
+    command.execute(message, args);
+});
+
+// --- Cargar eventos automáticamente ---
+const eventFiles = fs.readdirSync('./events').filter(f => f.endsWith('.js'));
+
+for (const file of eventFiles) {
+    const event = require(`./events/${file}`);
+    if (event.once) {
+        client.once(event.name, (...args) => event.execute(...args, client));
+    } else {
+        client.on(event.name, (...args) => event.execute(...args, client));
     }
-});
+}
 
-// Sistema de bienvenida
-client.on('guildMemberAdd', async member => {
-    const canal = member.guild.channels.cache.get("ID_DEL_CANAL");
-    if (!canal) return;
-
-    const canvas = Canvas.createCanvas(1000, 300);
-    const ctx = canvas.getContext('2d');
-
-    const background = await Canvas.loadImage('./img/fondo.png');
-    ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
-
-    ctx.font = '50px Sans';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(`Bienvenido/a ${member.user.username}!`, 250, 150);
-
-    const avatar = await Canvas.loadImage(member.user.displayAvatarURL({ extension: 'png' }));
-    ctx.beginPath();
-    ctx.arc(150, 150, 100, 0, Math.PI * 2, true);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(avatar, 50, 50, 200, 200);
-
-    const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'bienvenida.png' });
-    canal.send({ content: `¡Bienvenido/a ${member}!`, files: [attachment] });
-});
-
+// Iniciar bot
 client.login(process.env.TOKEN);
