@@ -1,82 +1,36 @@
-const { EmbedBuilder } = require("discord.js");
-
 module.exports = {
-    name: "interactionCreate",
-    async execute(interaction) {
-
-        // Ignorar cosas que no sean botones
+    name: 'interactionCreate',
+    async execute(interaction, client) {
         if (!interaction.isButton()) return;
 
-        // ------------------------------
-        // JUEGO: ARK
-        // ------------------------------
-        if (interaction.customId === "verify_ark") {
-            const embed = new EmbedBuilder()
-                .setTitle("🦖 Verificación — ARK: Survival Evolved")
-                .setDescription(
-                    `¡Perfecto! Has elegido **ARK**.  
-Para completar tu verificación sigue estos pasos:
+        const guild = interaction.guild;
+        const member = await guild.members.fetch(interaction.user.id);
 
-1️⃣ Proporciona tu **SteamID64**.  
-2️⃣ El bot verificará automáticamente si cumples los requisitos.  
-3️⃣ Si todo está correcto, se te dará acceso a la sección exclusiva de ARK.`
-                )
-                .setColor("#00A8FF");
+        let roleId;
+        let channelId;
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
-
-            // Aquí puedes añadir la asignación de rol (si ya tienes roles creados)
-            // await interaction.member.roles.add(process.env.ROLE_ARK_ID);
-
-            return;
+        // Asignar rol y canal según botón
+        switch (interaction.customId) {
+            case 'game_ark':
+                roleId = '1437124002630860841';
+                channelId = '1437112333909491813';
+                break;
+            case 'game_rust':
+                roleId = 'ID_ROL_RUST';
+                channelId = '1437119379383914586';
+                break;
+            default:
+                return;
         }
 
-        // ------------------------------
-        // JUEGO: MINECRAFT
-        // ------------------------------
-        if (interaction.customId === "verify_minecraft") {
-            const embed = new EmbedBuilder()
-                .setTitle("⛏️ Verificación — Minecraft")
-                .setDescription(
-                    `¡Perfecto! Has elegido **Minecraft**.  
-Para completar tu verificación sigue estos pasos:
+        // Asignar rol
+        await member.roles.add(roleId);
 
-1️⃣ Proporciona tu **nombre de usuario de Minecraft**.  
-2️⃣ El sistema comprobará si el nombre es válido.  
-3️⃣ Te daremos acceso automático a la sección de Minecraft.`
-                )
-                .setColor("#57F287");
+        // Responder interacción
+        await interaction.reply({ content: `✅ ¡Verificado! Ahora tienes acceso a tu sección de ${interaction.component.label}.`, ephemeral: true });
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
-
-            // Asignación de rol si ya tienes roles
-            // await interaction.member.roles.add(process.env.ROLE_MINECRAFT_ID);
-
-            return;
-        }
-
-        // ------------------------------
-        // JUEGO: RUST
-        // ------------------------------
-        if (interaction.customId === "verify_rust") {
-            const embed = new EmbedBuilder()
-                .setTitle("🔫 Verificación — Rust")
-                .setDescription(
-                    `¡Perfecto! Has elegido **Rust**.  
-Para completar tu verificación sigue estos pasos:
-
-1️⃣ Envía tu **SteamID64**.  
-2️⃣ El bot comprobará que es válido.  
-3️⃣ Se te dará acceso automático a la sección de Rust.`
-                )
-                .setColor("#ED4245");
-
-            await interaction.reply({ embeds: [embed], ephemeral: true });
-
-            // Asignación de rol opcional si ya tienes roles
-            // await interaction.member.roles.add(process.env.ROLE_RUST_ID);
-
-            return;
-        }
+        // Opcional: enviar un mensaje en el canal correspondiente
+        const channel = guild.channels.cache.get(channelId);
+        if (channel) channel.send(`¡Bienvenido ${member}! Disfruta de la sección de ${interaction.component.label}.`);
     },
 };
