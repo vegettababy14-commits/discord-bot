@@ -1,48 +1,31 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 
 module.exports = {
-    name: 'testverificacion',
-    description: 'Envía un mensaje privado de prueba con el sistema de verificación.',
-    async execute(message) {
-
-        // Intentamos enviar el mensaje privado
+    name: 'test_verify',
+    description: 'Envia DM de prueba con menú desplegable para seleccionar juego',
+    async execute(interaction) {
         try {
-            const embed = new EmbedBuilder()
-                .setTitle("🔐 Sistema de Verificación")
-                .setDescription(
-                    "¡Hola! Para poder acceder al servidor, selecciona el juego al que perteneces.\n\n" +
-                    "Esto ayudará a asignarte el rol adecuado y desbloquear los canales correctos."
-                )
-                .setColor("#00A2FF")
-                .setFooter({ text: "Sistema de verificación de ArceusHost" })
-                .setTimestamp();
-
-            const botones = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId("verificar_minecraft")
-                    .setLabel("Minecraft")
-                    .setStyle(ButtonStyle.Primary),
-
-                new ButtonBuilder()
-                    .setCustomId("verificar_ark")
-                    .setLabel("ARK")
-                    .setStyle(ButtonStyle.Success),
-
-                new ButtonBuilder()
-                    .setCustomId("verificar_rust")
-                    .setLabel("Rust")
-                    .setStyle(ButtonStyle.Danger)
+            const user = interaction.user;
+            
+            // Crear el menú desplegable
+            const row = new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('select_game')
+                    .setPlaceholder('Selecciona tu juego')
+                    .addOptions([
+                        { label: 'ARK', value: 'game_ark' },
+                        { label: 'Minecraft', value: 'game_minecraft' },
+                        { label: 'Rust', value: 'game_rust' },
+                    ])
             );
 
-            await message.author.send({
-                embeds: [embed],
-                components: [botones]
+            // Enviar DM con el menú
+            await user.send({
+                content: '🔹 Prueba de verificación: selecciona tu juego para obtener acceso a la sección correspondiente.',
+                components: [row],
             });
 
-            message.reply("📬 Te he enviado un mensaje privado con la verificación.");
-
-        } catch (err) {
-            message.reply("❌ No puedo enviarte mensajes privados. Activa los DMs para poder continuar.");
-        }
-    }
-};
+            await interaction.reply({ content: '✅ DM de prueba enviado con menú desplegable.', ephemeral: true });
+        } catch (error) {
+            console.error(error);
+            await interaction.reply({ content: '❌ Error al e
