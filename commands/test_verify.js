@@ -1,13 +1,14 @@
-const { ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 
 module.exports = {
-    name: 'test_verify',
-    description: 'Envia DM de prueba con menú desplegable para seleccionar juego',
+    data: new SlashCommandBuilder()
+        .setName('test_verify')
+        .setDescription('Envia DM de prueba con menú desplegable para seleccionar juego'),
+    
     async execute(interaction) {
         try {
             const user = interaction.user;
             
-            // Crear el menú desplegable
             const row = new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
                     .setCustomId('select_game')
@@ -19,7 +20,6 @@ module.exports = {
                     ])
             );
 
-            // Enviar DM con el menú
             await user.send({
                 content: '🔹 Prueba de verificación: selecciona tu juego para obtener acceso a la sección correspondiente.',
                 components: [row],
