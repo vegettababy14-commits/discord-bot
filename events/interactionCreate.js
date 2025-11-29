@@ -73,8 +73,8 @@ module.exports = {
 
             await interaction.reply({ content: `✅ ¡Verificado! Ahora tienes acceso a la sección de ${interaction.values[0].replace('game_', '')}.`, ephemeral: true });
 
-            const channel = guild.channels.cache.get(channelId);
-            if (channel) channel.send(`¡Bienvenido ${member}! Disfruta de la sección de ${interaction.values[0].replace('game_', '')}.`);
+           //  const channel = guild.channels.cache.get(channelId);
+            // if (channel) channel.send(`¡Bienvenido ${member}! Disfruta de la sección de ${interaction.values[0].replace('game_', '')}.`);
         }
     },
 };
