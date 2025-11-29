@@ -28,4 +28,7 @@ module.exports = {
             await interaction.reply({ content: '✅ DM de prueba enviado con menú desplegable.', ephemeral: true });
         } catch (error) {
             console.error(error);
-            await interaction.reply({ content: '❌ Error al e
+            await interaction.reply({ content: '❌ Error al enviar DM de prueba.', ephemeral: true });
+        }
+    },
+};
