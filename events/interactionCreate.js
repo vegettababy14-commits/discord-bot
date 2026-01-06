@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = {
     name: 'interactionCreate',
@@ -38,7 +38,6 @@ module.exports = {
                     }
 
                     const embed = EmbedBuilder.from(interaction.message.embeds[0]);
-                    const userId = interaction.customId.split('_')[2];
 
                     if (interaction.customId.startsWith('sugerencia_aceptar')) {
                         embed.setTitle('✅ Sugerencia aceptada');
@@ -106,6 +105,39 @@ module.exports = {
             }
 
             // ===========================
+            // MENSAJES NORMALES EN CANAL DE SUGERENCIAS
+            // ===========================
+            if (interaction.isMessageComponent()) return; // ignorar botones y select menus
+
+            if (interaction.channel?.id === '1437112875779887266' && interaction.content) {
+                // Canal de sugerencias y mensaje normal
+                const APPROVAL_CHANNEL_ID = 'ID_DEL_CANAL_DE_APROBACION'; // <-- reemplaza con tu canal
+                const row = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`sugerencia_aceptar_${interaction.user.id}`)
+                            .setLabel('Aceptar')
+                            .setStyle(ButtonStyle.Success),
+                        new ButtonBuilder()
+                            .setCustomId(`sugerencia_rechazar_${interaction.user.id}`)
+                            .setLabel('Rechazar')
+                            .setStyle(ButtonStyle.Danger)
+                    );
+
+                const embed = new EmbedBuilder()
+                    .setTitle('Nueva sugerencia')
+                    .setDescription(interaction.content)
+                    .setColor(0x3498db)
+                    .setFooter({ text: `De: ${interaction.user.tag}` });
+
+                const approvalChannel = await client.channels.fetch(APPROVAL_CHANNEL_ID);
+                await approvalChannel.send({ embeds: [embed], components: [row] });
+
+                // Eliminar mensaje original
+                await interaction.delete().catch(() => {});
+            }
+
+            // ===========================
             // SELECT MENUS
             // ===========================
             if (interaction.isStringSelectMenu()) {
@@ -119,9 +151,7 @@ module.exports = {
 
                 switch (interaction.values[0]) {
                     case 'game_ark':
-                        rolesToAdd = ['1437110881656770745',
-                                      '1437111886918324396',
-                        ];
+                        rolesToAdd = ['1437110881656770745','1437111886918324396'];
                         selectedCategory = 'ARK';
                         break;
                     case 'game_rust':
@@ -149,7 +179,7 @@ module.exports = {
                     .setTitle('🎫 Ticket creado')
                     .setDescription(`✅ Has seleccionado la categoría: **${selectedCategory}**`)
                     .setColor('#00ff99')
-                    .setFooter({ text: 'Soporte de ArceusHost' });
+                    .setFooter({ text: 'Soporte de Xelcore' });
 
                 await interaction.reply({
                     embeds: [confirmationEmbed],
