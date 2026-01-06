@@ -4,9 +4,9 @@ module.exports = {
     name: 'interactionCreate',
     async execute(interaction, client) {
         try {
-            // ---------------------------
-            // Slash commands
-            // ---------------------------
+            // ===========================
+            // SLASH COMMANDS
+            // ===========================
             if (interaction.isChatInputCommand()) {
                 const command = client.commands.get(interaction.commandName);
                 if (!command) {
@@ -14,27 +14,80 @@ module.exports = {
                     return;
                 }
                 await command.execute(interaction, client);
+                return;
             }
 
-            // ---------------------------
-            // Botones
-            // ---------------------------
+            // ===========================
+            // BOTONES
+            // ===========================
             if (interaction.isButton()) {
+
+                // ===========================
+                // SUGERENCIAS
+                // ===========================
+                if (interaction.customId.startsWith('sugerencia_')) {
+
+                    const MOD_ROLE_ID = '1437139317410627675';
+                    const SUGGESTIONS_CHANNEL_ID = '1437112875779887266';
+
+                    if (!interaction.member.roles.cache.has(MOD_ROLE_ID)) {
+                        return interaction.reply({
+                            content: '❌ No tienes permisos para revisar sugerencias.',
+                            ephemeral: true
+                        });
+                    }
+
+                    const embed = EmbedBuilder.from(interaction.message.embeds[0]);
+                    const userId = interaction.customId.split('_')[2];
+
+                    if (interaction.customId.startsWith('sugerencia_aceptar')) {
+                        embed.setTitle('✅ Sugerencia aceptada');
+                        embed.setColor(0x2ecc71);
+
+                        const suggestionsChannel = await client.channels.fetch(SUGGESTIONS_CHANNEL_ID);
+                        await suggestionsChannel.send({ embeds: [embed] });
+
+                        return interaction.update({
+                            embeds: [embed],
+                            components: []
+                        });
+                    }
+
+                    if (interaction.customId.startsWith('sugerencia_rechazar')) {
+                        embed.setTitle('❌ Sugerencia rechazada');
+                        embed.setColor(0xe74c3c);
+
+                        return interaction.update({
+                            embeds: [embed],
+                            components: []
+                        });
+                    }
+                }
+
+                // ===========================
+                // VERIFICACIÓN (SOLO EN UN CANAL)
+                // ===========================
+                const VERIFICATION_CHANNEL_ID = '1437110882545959145';
+
+                if (interaction.channel.id !== VERIFICATION_CHANNEL_ID) {
+                    return interaction.reply({
+                        content: '❌ La verificación solo puede hacerse en el canal correspondiente.',
+                        ephemeral: true
+                    });
+                }
+
                 const guild = interaction.guild;
                 if (!guild) return;
 
                 const member = await guild.members.fetch(interaction.user.id);
                 let rolesToAdd = [];
-                let channelId;
 
                 switch (interaction.customId) {
                     case 'game_ark':
                         rolesToAdd = ['1437111886918324396'];
-                        channelId = '1437112333909491813';
                         break;
                     case 'game_rust':
                         rolesToAdd = ['ID_ROL_RUST'];
-                        channelId = '1437119379383914586';
                         break;
                     default:
                         return;
@@ -44,29 +97,32 @@ module.exports = {
                     await member.roles.add(r).catch(() => {});
                 }
 
-                await interaction.reply({ content: '✅ ¡Verificado! Ahora tienes acceso a tu sección.', ephemeral: true });
+                await interaction.reply({
+                    content: '✅ ¡Verificado correctamente! Ya tienes acceso.',
+                    ephemeral: true
+                });
+
+                return;
             }
 
-            // ---------------------------
-            // Select menus
-            // ---------------------------
+            // ===========================
+            // SELECT MENUS
+            // ===========================
             if (interaction.isStringSelectMenu()) {
                 const guild = interaction.guild;
                 if (!guild) return;
 
                 const member = await guild.members.fetch(interaction.user.id);
 
-                // Tickets y roles según selección
                 let rolesToAdd = [];
                 let selectedCategory = '';
+
                 switch (interaction.values[0]) {
                     case 'game_ark':
-                        rolesToAdd = ['1437111886918324396'];
+                        rolesToAdd = ['1437110881656770745',
+                                      '1437111886918324396',
+                        ];
                         selectedCategory = 'ARK';
-                        break;
-                    case 'game_minecraft':
-                        rolesToAdd = ['ID_ROL_MINECRAFT'];
-                        selectedCategory = 'Minecraft';
                         break;
                     case 'game_rust':
                         rolesToAdd = ['ID_ROL_RUST'];
@@ -85,24 +141,29 @@ module.exports = {
                         return;
                 }
 
-                // Añadir roles si corresponde
                 for (const r of rolesToAdd) {
                     await member.roles.add(r).catch(() => {});
                 }
 
-                // Embed de confirmación
                 const confirmationEmbed = new EmbedBuilder()
                     .setTitle('🎫 Ticket creado')
                     .setDescription(`✅ Has seleccionado la categoría: **${selectedCategory}**`)
                     .setColor('#00ff99')
                     .setFooter({ text: 'Soporte de ArceusHost' });
 
-                await interaction.reply({ embeds: [confirmationEmbed], ephemeral: true });
+                await interaction.reply({
+                    embeds: [confirmationEmbed],
+                    ephemeral: true
+                });
             }
+
         } catch (error) {
             console.error('Error en interactionCreate:', error);
-            if (!interaction.replied) {
-                await interaction.reply({ content: '❌ Error interno.', ephemeral: true });
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({
+                    content: '❌ Error interno.',
+                    ephemeral: true
+                });
             }
         }
     }
