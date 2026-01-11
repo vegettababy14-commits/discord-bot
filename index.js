@@ -44,6 +44,12 @@ for (const file of eventFiles) {
     console.log(`Evento cargado: ${event.name}`);
 }
 
+
+// ----------------------------
+// 🔹 Cargar estado del servidor ARK
+// ----------------------------
+require('./events/serverStatusEmbed')(client);
+
 // ----------------------------
 // 🔹 Iniciar bot
 // ----------------------------
