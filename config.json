@@ -1,0 +1,30 @@
+{
+  "statusCategory": "📡 ESTADO SERVIDORES",
+  "statusChannelId": "1462384908038045920",
+  "servers": [
+    {
+      "name": "ragnarok",
+      "channelId": "1462385178998603907",
+      "ip": "192.168.1.101",
+      "port": 7779
+    },
+    {
+      "name": "The Island",
+      "channelId": "1462385233927213289",
+      "ip": "192.168.1.101",
+      "port": 7778
+    },
+        {
+      "name": "Extincion",
+      "channelId": "1462385263425884394",
+      "ip": "192.168.1.101",
+      "port": 7780
+    },
+        {
+      "name": "Aberration",
+      "channelId": "1462385288478330965",
+      "ip": "192.168.1.101",
+      "port": 7777
+    }
+  ]
+}
