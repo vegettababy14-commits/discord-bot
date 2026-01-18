@@ -45,12 +45,17 @@ for (const file of eventFiles) {
 }
 
 // ----------------------------
-// 🔹 Cargar estado del servidor ARK
+// 🔹 Iniciar bot cuando esté listo
 // ----------------------------
-const { startServerStatus } = require('./events/serverStatus');
-startServerStatus(client);
+client.once('ready', () => {
+    console.log(`${client.user.tag} está listo!`);
+
+    // 🔹 Cargar estado del servidor ARK
+    const { startServerStatus } = require('./events/serverStatus');
+    startServerStatus(client);
+});
 
 // ----------------------------
-// 🔹 Iniciar bot
+// 🔹 Login con token
 // ----------------------------
 client.login(process.env.TOKEN);
