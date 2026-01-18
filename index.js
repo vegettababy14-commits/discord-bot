@@ -1,5 +1,5 @@
 const { Client, GatewayIntentBits } = require('discord.js');
-const { startServerStatus } = require('./serverStatus'); // ruta relativa correcta
+const { startServerStatus } = require('./events/serverStatus'); // ruta relativa correcta
 
 const client = new Client({
     intents: [
