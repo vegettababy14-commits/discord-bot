@@ -3,12 +3,13 @@ const Gamedig = require("gamedig");
 
 const config = JSON.parse(fs.readFileSync("./config.json", "utf8"));
 
+// Función para consultar servidor de ARK
 async function checkServer(server) {
   try {
     const state = await Gamedig.query({
-      type: server.type,  // 'ark', 'minecraft', 'rust', etc.
+      type: "ark",
       host: server.ip,
-      port: server.port
+      port: server.port,
     });
     return { online: true, players: state.players.length };
   } catch (err) {
@@ -16,18 +17,12 @@ async function checkServer(server) {
   }
 }
 
-async function startServerStatus(client) {
-  console.log("Iniciando sistema de estado de servidores...");
-
-  // Obtener la guild por ID
+// Función que actualiza todos los servidores
+async function updateServerStatus(client) {
   const guild = client.guilds.cache.get(config.guildId);
-  if (!guild) {
-    console.error("No se encontró la guild. Verifica guildId en config.json");
-    return;
-  }
-  console.log(`Guild encontrada: ${guild.name}`);
+  if (!guild) return console.error("No se encontró la guild. Verifica guildId.");
 
-  // Crear categoría si no existe
+  // Categoría
   let category = guild.channels.cache.find(
     (c) => c.name === config.statusCategory && c.type === 4
   );
@@ -36,11 +31,16 @@ async function startServerStatus(client) {
       name: config.statusCategory,
       type: 4, // Categoria
     });
-    console.log("Categoría de estado creada:", category.name);
   }
 
-  // Crear canales de voz si no existen
+  // Canal de resumen
+  const summaryChannel = guild.channels.cache.get(config.statusChannelId);
+  if (!summaryChannel) console.warn("Canal de resumen no encontrado.");
+
+  let summary = "";
+
   for (const server of config.servers) {
+    // Crear canal de voz si no existe
     let channel = guild.channels.cache.get(server.channelId);
     if (!channel) {
       channel = await guild.channels.create({
@@ -48,50 +48,45 @@ async function startServerStatus(client) {
         type: 2, // Voz
         parent: category.id,
       });
-      server.channelId = channel.id; // Guardar ID para el bot
-      console.log(`Canal de voz creado: ${channel.name}`);
+      server.channelId = channel.id;
     }
+
+    // Consultar estado
+    const { online, players } = await checkServer(server);
+
+    // Actualizar nombre del canal de voz
+    const emoji = online ? "✅" : "🛑";
+    const newName = online
+      ? `${emoji} ${server.name} (${players})`
+      : `${emoji} ${server.name}`;
+    if (channel.name !== newName) await channel.setName(newName);
+
+    // Resumen
+    summary += `${emoji} **${server.name}** ${online ? `(${players})` : ""}\n`;
   }
 
-  // Canal de resumen
-  let summaryChannel = guild.channels.cache.get(config.statusChannelId);
-  if (!summaryChannel) console.warn("Canal de resumen no encontrado.");
-
-  // Intervalo de actualización
-  setInterval(async () => {
-    let summary = "";
-
-    for (const server of config.servers) {
-      try {
-        const { online, players } = await checkServer(server);
-
-        // Renombrar canal de voz
-        const channel = guild.channels.cache.get(server.channelId);
-        if (channel && channel.type === 2) {
-          const emoji = online ? "✅" : "🛑";
-          await channel.setName(`${emoji} ${server.name} ${online ? `(${players})` : ""}`);
-        }
-
-        // Texto de resumen
-        summary += `${online ? "✅" : "🛑"} **${server.name}** ${online ? `(${players})` : ""}\n`;
-      } catch (err) {
-        console.error(`Error actualizando ${server.name}:`, err);
-      }
+  // Actualizar mensaje en canal de resumen
+  if (summaryChannel) {
+    try {
+      let messages = await summaryChannel.messages.fetch({ limit: 10 });
+      let botMessage = messages.find((m) => m.author.id === client.user.id);
+      if (botMessage) await botMessage.edit({ content: summary });
+      else await summaryChannel.send(summary);
+    } catch (err) {
+      console.error("Error actualizando canal de resumen:", err);
     }
+  }
+}
 
-    // Actualizar mensaje único en canal de resumen
-    if (summaryChannel) {
-      try {
-        let messages = await summaryChannel.messages.fetch({ limit: 10 });
-        let botMessage = messages.find((m) => m.author.id === client.user.id);
+// Función principal para iniciar el sistema
+async function startServerStatus(client) {
+  console.log("Iniciando sistema de estado de servidores...");
 
-        if (botMessage) await botMessage.edit({ content: summary });
-        else await summaryChannel.send(summary);
-      } catch (err) {
-        console.error("Error actualizando canal de resumen:", err);
-      }
-    }
-  }, 60 * 1000);
+  // Primera actualización inmediata
+  await updateServerStatus(client);
+
+  // Intervalo cada minuto
+  setInterval(() => updateServerStatus(client), 60 * 1000);
 }
 
 module.exports = { startServerStatus };
