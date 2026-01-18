@@ -19,8 +19,22 @@ async function checkServer(server) {
 
 // Función que actualiza todos los servidores
 async function updateServerStatus(client) {
-  const guild = client.guilds.cache.get(config.guildId);
-  if (!guild) return console.error("No se encontró la guild. Verifica guildId.");
+  // Obtener guild de manera segura
+  let guild;
+  try {
+    guild = await client.guilds.fetch(config.guildId);
+  } catch (err) {
+    console.error("No se pudo obtener la guild:", err);
+    return;
+  }
+
+  // Obtener canal de resumen de manera segura
+  let summaryChannel;
+  try {
+    summaryChannel = await guild.channels.fetch(config.statusChannelId);
+  } catch (err) {
+    console.warn("No se pudo obtener el canal de resumen:", err);
+  }
 
   // Categoría
   let category = guild.channels.cache.find(
@@ -31,11 +45,8 @@ async function updateServerStatus(client) {
       name: config.statusCategory,
       type: 4, // Categoria
     });
+    console.log("Categoría de estado creada:", category.name);
   }
-
-  // Canal de resumen
-  const summaryChannel = guild.channels.cache.get(config.statusChannelId);
-  if (!summaryChannel) console.warn("Canal de resumen no encontrado.");
 
   let summary = "";
 
@@ -51,7 +62,7 @@ async function updateServerStatus(client) {
       server.channelId = channel.id;
     }
 
-    // Consultar estado
+    // Consultar estado del servidor
     const { online, players } = await checkServer(server);
 
     // Actualizar nombre del canal de voz
@@ -61,7 +72,7 @@ async function updateServerStatus(client) {
       : `${emoji} ${server.name}`;
     if (channel.name !== newName) await channel.setName(newName);
 
-    // Resumen
+    // Construir mensaje de resumen
     summary += `${emoji} **${server.name}** ${online ? `(${players})` : ""}\n`;
   }
 
