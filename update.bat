@@ -1,27 +1,16 @@
 @echo off
-REM =========================
-REM 1️⃣ Commit y push al repositorio
-REM =========================
+REM Commit y push
 git add .
 git commit -m "Cambios del bot"
 git push origin main
 
-REM =========================
-REM 2️⃣ Conectarse al servidor y ejecutar el script de actualización
-REM =========================
-echo Conectando al servidor 192.168.1.156 y actualizando...
-ssh root@192.168.1.156 "cd /root/bot && ./update_bot.sh" > output.log 2>&1
+REM Conectar al servidor y ejecutar update_bot.sh usando plink
+REM Cambia TU_PASSWORD por la contraseña real
+plink.exe root@192.168.1.156 -pw TU_PASSWORD "cd /root/bot && ./update_bot.sh"
 
-REM =========================
-REM 3️⃣ Mostrar logs recientes del contenedor Docker
-REM =========================
-echo ===================================================
-echo Logs recientes del contenedor Docker:
-ssh root@192.168.1.156 "docker logs --tail 20 bot-bot-1"
-echo ===================================================
+REM Mostrar logs recientes del contenedor
+plink.exe root@192.168.1.156 -pw Xelcore1234 "docker logs --tail 20 bot-bot-1"
 
-REM =========================
-REM 4️⃣ Esperar a que presiones una tecla antes de cerrar
-REM =========================
+echo ===================================================
 echo Presiona cualquier tecla para cerrar este script...
 pause
