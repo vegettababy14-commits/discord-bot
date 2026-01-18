@@ -1,64 +1,69 @@
-const { Rcon } = require('rcon-client'); // Para conectarte a ARK si quieres
-require('dotenv').config();
+const { Client, GatewayIntentBits } = require('discord.js');
+const Rcon = require('rcon-client').Rcon;
+const client = require('../index'); // Ajusta según tu estructura
+const { CATEGORY_ID, MAP_SERVERS } = process.env; // CATEGORY_ID = categoría donde crear los canales
 
-const SERVERS = [
-    {
-        name: 'ARK',
-        rconHost: process.env.ARK_RCON_HOST,
-        rconPort: parseInt(process.env.ARK_RCON_PORT),
-        rconPassword: process.env.ARK_RCON_PASSWORD,
-        channelId: process.env.ARK_DISCORD_CHANNEL, // Canal de texto donde pondremos el estado
-    },
-    // Puedes añadir más servidores aquí
-];
+// MAP_SERVERS debe estar en el .env así:
+// MAP_SERVERS='Aberration:IP:PORT,Ragnarok:IP:PORT,TheIsland:IP:PORT,Extinction:IP:PORT'
 
-async function startServerStatus(client) {
-    try {
-        const guild = await client.guilds.fetch(process.env.GUILD_ID);
-        if (!guild) {
-            console.error('No se pudo obtener la guild');
-            return;
-        }
+const parseMapServers = () => {
+  const maps = {};
+  MAP_SERVERS.split(',').forEach(entry => {
+    const [name, ip, port] = entry.split(':');
+    maps[name] = { ip, port };
+  });
+  return maps;
+};
 
-        console.log('Iniciando sistema de estado de servidores...');
+const mapServers = parseMapServers();
 
-        setInterval(async () => {
-            for (const server of SERVERS) {
-                try {
-                    // Obtenemos el canal de texto
-                    const channel = await guild.channels.fetch(server.channelId);
-                    if (!channel) continue;
+async function updateServerStatus() {
+  const guild = client.guilds.cache.first(); // Ajusta si tienes más de un servidor
+  const category = guild.channels.cache.get(CATEGORY_ID);
+  if (!category) {
+    console.error('Categoría no encontrada para los canales de voz');
+    return;
+  }
 
-                    let online = false;
-
-                    try {
-                        const rcon = await Rcon.connect({
-                            host: server.rconHost,
-                            port: server.rconPort,
-                            password: server.rconPassword
-                        });
-                        online = true;
-                        await rcon.end();
-                    } catch {
-                        online = false;
-                    }
-
-                    // Actualizamos el nombre del canal según el estado
-                    await channel.setName(`${server.name} ${online ? '🟢' : '🔴'}`);
-                    console.log(`${server.name} actualizado: ${online ? 'Online' : 'Offline'}`);
-
-                    // Si quieres, aquí también puedes actualizar canales por voz con el mismo estado
-                    // const voiceChannel = await guild.channels.fetch(VOCAL_CHANNEL_ID);
-                    // await voiceChannel.setName(`ARK ${online ? '🟢' : '🔴'}`);
-
-                } catch (err) {
-                    console.error(`Error actualizando canal ${server.name}:`, err);
-                }
-            }
-        }, 60000); // cada minuto
-    } catch (err) {
-        console.error('Error en startServerStatus:', err);
+  for (const mapName in mapServers) {
+    const server = mapServers[mapName];
+    let channel = category.children.find(c => c.name.startsWith(mapName));
+    
+    // Si no existe, creamos el canal de voz automáticamente
+    if (!channel) {
+      channel = await guild.channels.create({
+        name: `${mapName}: Offline`,
+        type: 2, // Canal de voz
+        parent: CATEGORY_ID,
+      });
+      console.log(`Canal creado automáticamente: ${mapName}`);
     }
+
+    try {
+      const rcon = await Rcon.connect({
+        host: server.ip,
+        port: parseInt(server.port),
+      });
+
+      const status = await rcon.send('status'); // Ajusta según tu comando RCON
+      const isOnline = status.includes('players'); // Ejemplo simple
+      const newName = `${mapName}: ${isOnline ? 'Online' : 'Offline'}`;
+      await channel.edit({ name: newName });
+      console.log(`${mapName} actualizado: ${isOnline ? 'Online' : 'Offline'}`);
+
+      await rcon.end();
+    } catch (err) {
+      console.error(`Error actualizando canal ${mapName}:`, err.message);
+      await channel.edit({ name: `${mapName}: Offline` });
+    }
+  }
 }
 
-module.exports = { startServerStatus };
+// Ejecutamos al iniciar y cada 30s
+client.on('clientReady', () => {
+  console.log('Iniciando sistema de estado de servidores...');
+  updateServerStatus();
+  setInterval(updateServerStatus, 30000);
+});
+
+module.exports = { updateServerStatus };
