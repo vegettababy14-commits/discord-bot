@@ -1,69 +1,91 @@
-const { Client, GatewayIntentBits } = require('discord.js');
+// serverStatus.js
+const { Client, GatewayIntentBits, ChannelType } = require('discord.js');
 const Rcon = require('rcon-client').Rcon;
-const client = require('../index'); // Ajusta según tu estructura
-const { CATEGORY_ID, MAP_SERVERS } = process.env; // CATEGORY_ID = categoría donde crear los canales
+const client = require('./index.js'); // tu cliente exportado desde index.js
 
-// MAP_SERVERS debe estar en el .env así:
-// MAP_SERVERS='Aberration:IP:PORT,Ragnarok:IP:PORT,TheIsland:IP:PORT,Extinction:IP:PORT'
+const MAP_SERVERS = process.env.MAP_SERVERS; // "Aberration:IP:PORT,TheIsland:IP:PORT,..."
+const CATEGORY_ID = process.env.CATEGORY_ID;
 
-const parseMapServers = () => {
-  const maps = {};
+if (!MAP_SERVERS || !CATEGORY_ID) {
+  console.error('❌ MAP_SERVERS o CATEGORY_ID no definidos en .env');
+  process.exit(1);
+}
+
+// Parseamos los mapas
+function parseMapServers() {
+  const mapList = {};
   MAP_SERVERS.split(',').forEach(entry => {
-    const [name, ip, port] = entry.split(':');
-    maps[name] = { ip, port };
+    const [name, host, port] = entry.split(':');
+    if (name && host && port) {
+      mapList[name] = { host, port: Number(port) };
+    }
   });
-  return maps;
-};
+  return mapList;
+}
 
-const mapServers = parseMapServers();
+const maps = parseMapServers();
 
-async function updateServerStatus() {
-  const guild = client.guilds.cache.first(); // Ajusta si tienes más de un servidor
+// Función para crear o actualizar el canal de voz
+async function updateMapChannel(mapName, status) {
+  const guild = client.guilds.cache.get(process.env.GUILD_ID);
+  if (!guild) return console.error('❌ Guild no encontrada');
+
   const category = guild.channels.cache.get(CATEGORY_ID);
-  if (!category) {
-    console.error('Categoría no encontrada para los canales de voz');
+  if (!category || category.type !== ChannelType.GuildCategory)
+    return console.error('❌ Category inválida');
+
+  // Buscar canal de voz existente
+  let channel = guild.channels.cache.find(
+    c => c.name.toLowerCase().includes(mapName.toLowerCase()) && c.type === ChannelType.GuildVoice
+  );
+
+  // Si no existe, lo creamos
+  if (!channel) {
+    channel = await guild.channels.create({
+      name: `${mapName}: ${status}`,
+      type: ChannelType.GuildVoice,
+      parent: CATEGORY_ID,
+    });
+    console.log(`✅ Canal creado para ${mapName}`);
     return;
   }
 
-  for (const mapName in mapServers) {
-    const server = mapServers[mapName];
-    let channel = category.children.find(c => c.name.startsWith(mapName));
-    
-    // Si no existe, creamos el canal de voz automáticamente
-    if (!channel) {
-      channel = await guild.channels.create({
-        name: `${mapName}: Offline`,
-        type: 2, // Canal de voz
-        parent: CATEGORY_ID,
-      });
-      console.log(`Canal creado automáticamente: ${mapName}`);
-    }
+  // Si existe, actualizamos su nombre
+  await channel.setName(`${mapName}: ${status}`);
+  console.log(`🔄 ${mapName} actualizado: ${status}`);
+}
 
-    try {
-      const rcon = await Rcon.connect({
-        host: server.ip,
-        port: parseInt(server.port),
-      });
-
-      const status = await rcon.send('status'); // Ajusta según tu comando RCON
-      const isOnline = status.includes('players'); // Ejemplo simple
-      const newName = `${mapName}: ${isOnline ? 'Online' : 'Offline'}`;
-      await channel.edit({ name: newName });
-      console.log(`${mapName} actualizado: ${isOnline ? 'Online' : 'Offline'}`);
-
-      await rcon.end();
-    } catch (err) {
-      console.error(`Error actualizando canal ${mapName}:`, err.message);
-      await channel.edit({ name: `${mapName}: Offline` });
-    }
+// Función para comprobar el estado del servidor vía RCON
+async function checkServer(map) {
+  try {
+    const rcon = await Rcon.connect({
+      host: map.host,
+      port: map.port,
+    });
+    await rcon.end();
+    return 'Online';
+  } catch (e) {
+    return 'Offline';
   }
 }
 
-// Ejecutamos al iniciar y cada 30s
-client.on('clientReady', () => {
-  console.log('Iniciando sistema de estado de servidores...');
+// Función principal
+async function updateServerStatus() {
+  for (const [mapName, mapInfo] of Object.entries(maps)) {
+    const status = await checkServer(mapInfo);
+    await updateMapChannel(mapName, status);
+  }
+}
+
+// Iniciamos cuando el cliente esté listo
+if (client.isReady()) {
   updateServerStatus();
-  setInterval(updateServerStatus, 30000);
-});
+  setInterval(updateServerStatus, 60_000); // cada 1 minuto
+} else {
+  client.once('clientReady', () => {
+    updateServerStatus();
+    setInterval(updateServerStatus, 60_000);
+  });
+}
 
 module.exports = { updateServerStatus };
