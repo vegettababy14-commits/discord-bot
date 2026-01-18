@@ -48,7 +48,7 @@ for (const file of eventFiles) {
 // ----------------------------
 // 🔹 Cargar estado del servidor ARK
 // ----------------------------
-require('./events/serverStatusEmbed')(client);
+require('./events/serverStatus')(client);
 
 // ----------------------------
 // 🔹 Iniciar bot

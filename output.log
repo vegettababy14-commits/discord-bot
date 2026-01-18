@@ -1,13 +1,11 @@
-HEAD is now at 5b7b362 Cambios del bot
+HEAD is now at 33b792e Cambios del bot
 From https://github.com/vegettababy14-commits/discord-bot
  * branch            main       -> FETCH_HEAD
-   5b7b362..bebb21b  main       -> origin/main
-Updating 5b7b362..bebb21b
+   33b792e..7c1180c  main       -> origin/main
+Updating 33b792e..7c1180c
 Fast-forward
- output.log |  1 +
- update.bat | 22 +++++++++++++++-------
- 2 files changed, 16 insertions(+), 7 deletions(-)
- create mode 100644 output.log
+ update.bat | 25 ++++++++++++++++++-------
+ 1 file changed, 18 insertions(+), 7 deletions(-)
  Container bot-bot-1  Stopping
  Container bot-bot-1  Stopped
  Container bot-bot-1  Removing
@@ -42,14 +40,15 @@ Fast-forward
 #8 CACHED
 
 #9 [bot 5/5] COPY . .
-#9 DONE 1.4s
+#9 DONE 1.3s
 
 #10 [bot] exporting to image
 #10 exporting layers
-#10 exporting layers 0.4s done
-#10 writing image sha256:f3cd03d3b12f14b9a6aa0fc58e3f4e182be6563c8358227ac43f3324d08721ce done
+#10 exporting layers 0.5s done
+#10 writing image sha256:587a09212ab40c93ed77199183e822ab2c039282d977ab78bf8fe598d1c14f97
+#10 writing image sha256:587a09212ab40c93ed77199183e822ab2c039282d977ab78bf8fe598d1c14f97 done
 #10 naming to docker.io/library/bot-bot done
-#10 DONE 0.4s
+#10 DONE 0.5s
  Network bot_default  Creating
  Network bot_default  Created
  Container bot-bot-1  Creating
