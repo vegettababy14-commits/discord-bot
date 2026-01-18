@@ -1,27 +1,36 @@
 @echo off
-REM =========================
-REM 1️⃣ Commit y push al repositorio
-REM =========================
+setlocal
+
+echo ================================================
+echo 🔄 Actualizando bot de Discord...
+echo ================================================
+
+REM ----------------------------
+REM 1️⃣ Guardar cambios locales y subir a Git
+REM ----------------------------
 git add .
-git commit -m "Cambios del bot"
+git commit -m "Actualización desde BAT"
 git push origin main
 
-REM =========================
-REM 2️⃣ Conectarse al servidor y ejecutar el script de actualización
-REM =========================
-echo Conectando al servidor 192.168.1.156 y actualizando...
-ssh root@192.168.1.156 "cd /root/bot && ./update_bot.sh" > output.log 2>&1
+REM ----------------------------
+REM 2️⃣ Conectarse al servidor y actualizar contenedor Docker
+REM ----------------------------
+set SERVER_IP=192.168.1.156
+set SSH_USER=root
 
-REM =========================
-REM 3️⃣ Mostrar logs recientes del contenedor Docker
-REM =========================
-echo ===================================================
-echo Logs recientes del contenedor Docker:
-ssh root@192.168.1.156 "docker logs --tail 20 bot-bot-1"
-echo ===================================================
+echo Conectando al servidor %SERVER_IP%...
+ssh %SSH_USER%@%SERVER_IP% ^
+"echo ================================================; ^
+echo Parando contenedor Docker viejo...; ^
+docker stop bot-bot-1; ^
+docker rm bot-bot-1; ^
+echo Pull del repo...; ^
+cd /root/bot; git pull; ^
+echo Levantando nuevo contenedor...; ^
+docker-compose up -d; ^
+echo Mostrando logs recientes...; ^
+docker logs -f bot-bot-1"
 
-REM =========================
-REM 4️⃣ Esperar a que presiones una tecla antes de cerrar
-REM =========================
-echo Presiona cualquier tecla para cerrar este script...
+echo ================================================
+echo ✅ Actualización completada.
 pause
