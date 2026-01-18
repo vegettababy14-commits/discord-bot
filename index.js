@@ -1,16 +1,21 @@
-const { startServerStatus } = require('./serverStatus');
+const { Client, GatewayIntentBits } = require('discord.js');
+const { startServerStatus } = require('./serverStatus'); // ruta relativa correcta
 
-module.exports = {
-  name: 'ready',
-  once: true,
-  async execute(client) {
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildVoiceStates,
+    ],
+});
+
+client.once('ready', () => {
     console.log(`${client.user.tag} está listo!`);
+    startServerStatus(client).catch(console.error);
+});
 
-    try {
-      // Iniciar el sistema de estado de servidores pasándole el client
-      startServerStatus(client);
-    } catch (err) {
-      console.error('Error iniciando estado de servidores:', err);
-    }
-  },
-};
+client.login(process.env.TOKEN);
+
+module.exports = client;

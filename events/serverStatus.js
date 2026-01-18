@@ -1,8 +1,6 @@
-const client = require('../index.js');
-const { Guild } = require('discord.js');
+const { GuildChannel } = require('discord.js');
 const Rcon = require('rcon-client').Rcon;
 
-// Obtener servidores desde .env
 const MAP_SERVERS = process.env.MAP_SERVERS || '';
 const CATEGORY_ID = process.env.CATEGORY_ID;
 
@@ -15,7 +13,7 @@ function parseMapServers() {
     return servers;
 }
 
-async function updateServerStatus() {
+async function updateServerStatus(client) {
     const guild = await client.guilds.fetch(process.env.GUILD_ID);
     const category = guild.channels.cache.get(CATEGORY_ID);
 
@@ -27,12 +25,12 @@ async function updateServerStatus() {
     const servers = parseMapServers();
 
     for (const server of servers) {
-        let channel = guild.channels.cache.find(c => c.name === server.name.toUpperCase());
+        let channel = guild.channels.cache.find(c => c.name.includes(server.name.toUpperCase()));
 
-        // Si no existe el canal, lo creamos automáticamente
+        // Crear canal automáticamente si no existe
         if (!channel) {
             channel = await guild.channels.create({
-                name: server.name.toUpperCase(),
+                name: `${server.name.toUpperCase()} - Offline`,
                 type: 2, // 2 = GUILD_VOICE
                 parent: CATEGORY_ID,
             });
@@ -55,7 +53,7 @@ async function updateServerStatus() {
 
         try {
             await channel.setName(`${server.name.toUpperCase()} - ${status}`);
-            console.log(`ARK actualizado: ${status}`);
+            console.log(`${server.name} actualizado: ${status}`);
         } catch (err) {
             console.error(`Error actualizando canal ${server.name}:`, err.message);
         }
@@ -63,7 +61,9 @@ async function updateServerStatus() {
 }
 
 // Ejecutar cada 30s
-setInterval(updateServerStatus, 30000);
+async function startServerStatus(client) {
+    await updateServerStatus(client);
+    setInterval(() => updateServerStatus(client), 30000);
+}
 
-// Ejecutar al iniciar el bot
-client.on('clientReady', updateServerStatus);
+module.exports = { startServerStatus };
