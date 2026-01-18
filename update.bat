@@ -1,36 +1,49 @@
 @echo off
-setlocal
+SETLOCAL ENABLEDELAYEDEXPANSION
 
-echo ================================================
-echo 🔄 Actualizando bot de Discord...
-echo ================================================
-
-REM ----------------------------
-REM 1️⃣ Guardar cambios locales y subir a Git
-REM ----------------------------
-git add .
-git commit -m "Actualización desde BAT"
-git push origin main
-
-REM ----------------------------
-REM 2️⃣ Conectarse al servidor y actualizar contenedor Docker
-REM ----------------------------
+:: ----------------------------
+:: 🔹 Configuración
+:: ----------------------------
 set SERVER_IP=192.168.1.156
-set SSH_USER=root
+set BOT_PATH=/root/bot
+set GIT_REPO=https://github.com/vegettababy14-commits/discord-bot.git
+set BRANCH=main
 
+:: ----------------------------
+:: 🔹 Actualizar código local
+:: ----------------------------
+echo ================================
+echo Actualizando código del bot...
+git add .
+git commit -m "Actualización desde BAT" 2>nul
+git push origin %BRANCH%
+echo ================================
+
+:: ----------------------------
+:: 🔹 Conectar al servidor y actualizar contenedor
+:: ----------------------------
 echo Conectando al servidor %SERVER_IP%...
-ssh %SSH_USER%@%SERVER_IP% ^
-"echo ================================================; ^
-echo Parando contenedor Docker viejo...; ^
-docker stop bot-bot-1; ^
-docker rm bot-bot-1; ^
-echo Pull del repo...; ^
-cd /root/bot; git pull; ^
-echo Levantando nuevo contenedor...; ^
-docker-compose up -d; ^
-echo Mostrando logs recientes...; ^
-docker logs -f bot-bot-1"
+plink root@%SERVER_IP%
+(
+    echo ================================
+    echo Parando contenedor Docker viejo...
+    docker compose -f %BOT_PATH%/docker-compose.yml down
 
-echo ================================================
-echo ✅ Actualización completada.
-pause
+    echo Pull del repo...
+    cd %BOT_PATH%
+    git fetch origin
+    git reset --hard origin/%BRANCH%
+
+    echo Levantando nuevo contenedor...
+    docker compose -f docker-compose.yml up -d
+
+    echo ================================
+    echo Mostrando logs recientes...
+    docker compose -f docker-compose.yml logs --tail=20 -f
+)
+
+echo ================================
+echo Actualización completada. Revisa los logs arriba.
+echo Presiona cualquier tecla para cerrar este script...
+pause >nul
+
