@@ -1,102 +1,94 @@
-const { EmbedBuilder } = require("discord.js");
-const config = require("../config.json");
-const ping = require("net-ping"); // opcional para check de puertos
+const { Client, TextChannel, VoiceChannel, CategoryChannel } = require("discord.js");
+const net = require("net");
+const fs = require("fs");
 
-let statusMessageId = null;
+const config = JSON.parse(fs.readFileSync("./config.json", "utf8"));
+
+async function checkServer(ip, port, timeout = 2000) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    let status = false;
+
+    socket.setTimeout(timeout);
+
+    socket.on("connect", () => {
+      status = true;
+      socket.destroy();
+    });
+
+    socket.on("timeout", () => socket.destroy());
+    socket.on("error", () => {});
+    socket.on("close", () => resolve(status));
+
+    socket.connect(port, ip);
+  });
+}
 
 async function startServerStatus(client) {
-  // Se ejecuta cada minuto
-  setInterval(async () => {
-    for (const guild of client.guilds.cache.values()) {
-      await updateGuild(client, guild);
-    }
-  }, 60000);
+  // Obtener la guild (primer servidor donde está el bot)
+  const guild = client.guilds.cache.first();
+  if (!guild) return console.error("Bot no está en ninguna guild.");
 
-  // Ejecutamos al iniciar también
-  for (const guild of client.guilds.cache.values()) {
-    await updateGuild(client, guild);
-  }
-}
-
-async function updateGuild(client, guild) {
-  // 1️⃣ Categoría
-  const category = await getOrCreateCategory(guild);
-
-  // 2️⃣ Actualizar canales de servidores
-  for (const server of config.servers) {
-    const channel = guild.channels.cache.get(server.channelId);
-    if (!channel) continue;
-
-    const online = await checkServer(server.ip, server.port);
-    await channel.setParent(category.id).catch(() => {});
-    await channel.setName(`${online ? "🟢" : "🔴"} ${server.name}`).catch(() => {});
-    server.online = online; // guardamos estado
-  }
-
-  // 3️⃣ Canal de mensaje único
-  const statusChannel = guild.channels.cache.get(config.statusChannelId);
-  if (!statusChannel) return;
-
-  const content = generateStatusEmbed(config.servers);
-  await updateStatusMessage(statusChannel, content);
-}
-
-async function getOrCreateCategory(guild) {
+  // Crear categoría si no existe
   let category = guild.channels.cache.find(
-    c => c.type === 4 && c.name === config.statusCategory
+    (c) => c.name === config.statusCategory && c.type === 4
   );
-
   if (!category) {
     category = await guild.channels.create({
       name: config.statusCategory,
-      type: 4
+      type: 4, // Categoria
     });
   }
-  return category;
-}
 
-// ---- MENSAJE ÚNICO ----
-async function updateStatusMessage(channel, embed) {
-  let message;
-
-  if (statusMessageId) {
-    try {
-      message = await channel.messages.fetch(statusMessageId);
-      await message.edit({ embeds: [embed] });
-      return;
-    } catch (err) {
-      statusMessageId = null; // si se borró
+  // Crear canales de voz si no existen
+  for (const server of config.servers) {
+    let channel = guild.channels.cache.get(server.channelId);
+    if (!channel) {
+      channel = await guild.channels.create({
+        name: server.name,
+        type: 2, // Voz
+        parent: category.id,
+      });
+      server.channelId = channel.id; // Guardar ID para el bot
     }
   }
 
-  message = await channel.send({ embeds: [embed] });
-  statusMessageId = message.id;
-}
+  // Canal de resumen
+  let summaryChannel = guild.channels.cache.get(config.statusChannelId);
+  if (!summaryChannel) {
+    console.warn("Canal de resumen no encontrado, se omitirá mensaje embed.");
+  }
 
-// ---- GENERAR EMBED ----
-function generateStatusEmbed(servers) {
-  const embed = new EmbedBuilder()
-    .setTitle("📡 Estado de los servidores")
-    .setColor(0x00ff00)
-    .setTimestamp();
+  // Intervalo de actualización
+  setInterval(async () => {
+    let summary = "";
 
-  servers.forEach(s => {
-    embed.addFields({
-      name: s.name,
-      value: s.online ? "🟢 ONLINE" : "🔴 OFFLINE",
-      inline: true
-    });
-  });
+    for (const server of config.servers) {
+      const online = await checkServer(server.ip, server.port);
 
-  return embed;
-}
+      // Renombrar canal de voz
+      const channel = guild.channels.cache.get(server.channelId);
+      if (channel && channel.type === 2) {
+        const emoji = online ? "✅" : "🛑";
+        await channel.setName(`${emoji} ${server.name}`);
+      }
 
-// ---- CHECK SERVIDOR ----
-async function checkServer(ip, port) {
-  // Aquí tu check real
-  // Ejemplo simplificado: true/false random
-  // Puedes reemplazar con ping real o check de puerto
-  return Math.random() > 0.3;
+      // Texto de resumen
+      summary += `${online ? "✅" : "🛑"} **${server.name}**\n`;
+    }
+
+    // Actualizar mensaje único en canal de resumen
+    if (summaryChannel) {
+      let messages = await summaryChannel.messages.fetch({ limit: 10 });
+      let botMessage = messages.find((m) => m.author.id === client.user.id);
+
+      if (botMessage) {
+        await botMessage.edit({ content: summary });
+      } else {
+        await summaryChannel.send(summary);
+      }
+    }
+  }, 60 * 1000); // Cada minuto
 }
 
 module.exports = { startServerStatus };
