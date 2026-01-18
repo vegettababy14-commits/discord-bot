@@ -1,9 +1,9 @@
-const client = require('../index.js');
 const { Rcon } = require('rcon-client');
 
 // Obtener servidores desde .env
 const MAP_SERVERS = process.env.MAP_SERVERS || '';
 const CATEGORY_ID = process.env.CATEGORY_ID;
+const GUILD_ID = process.env.GUILD_ID;
 
 function parseMapServers() {
     const servers = [];
@@ -14,8 +14,10 @@ function parseMapServers() {
     return servers;
 }
 
-async function updateServerStatus() {
-    const guild = await client.guilds.fetch(process.env.GUILD_ID);
+async function updateServerStatus(client) {
+    if (!client) return console.error("El client no está definido en updateServerStatus");
+
+    const guild = await client.guilds.fetch(GUILD_ID);
     const category = guild.channels.cache.get(CATEGORY_ID);
 
     if (!category) {
@@ -26,7 +28,7 @@ async function updateServerStatus() {
     const servers = parseMapServers();
 
     for (const server of servers) {
-        let channel = guild.channels.cache.find(c => c.name.startsWith(server.name.toUpperCase()));
+        let channel = guild.channels.cache.find(c => c.name === server.name.toUpperCase());
 
         // Si no existe el canal, lo creamos automáticamente
         if (!channel) {
@@ -45,33 +47,29 @@ async function updateServerStatus() {
                 port: server.port,
                 password: process.env.ARK_RCON_PASSWORD
             });
-
             await rcon.send('listplayers');
             status = 'Online';
-            console.log(`[RCON] Conexión exitosa a ${server.name} (${server.host}:${server.port})`);
             rcon.end();
-        } catch (err) {
-            console.error(`[RCON] Error conectando a ${server.name} (${server.host}:${server.port}):`, err.message);
+        } catch {
             status = 'Offline';
         }
 
         try {
             await channel.setName(`${server.name.toUpperCase()} - ${status}`);
-            console.log(`ARK actualizado: ${server.name} - ${status}`);
+            console.log(`Servidor ${server.name} actualizado: ${status}`);
         } catch (err) {
             console.error(`Error actualizando canal ${server.name}:`, err.message);
         }
     }
 }
 
-// Ejecutar cada 30s
-setInterval(updateServerStatus, 30000);
+async function startServerStatus(client) {
+    if (!client) return;
+    console.log("Iniciando actualización inmediata de servidores...");
+    await updateServerStatus(client);
 
-// Ejecutar **inmediatamente al iniciar el bot**
-async function startServerStatus(clientInstance) {
-    console.log('Iniciando actualización inmediata de servidores...');
-    await updateServerStatus();
-    console.log('Actualización inicial completa.');
+    // Ejecutar cada 30 segundos
+    setInterval(() => updateServerStatus(client), 30000);
 }
 
 module.exports = { startServerStatus };
