@@ -1,9 +1,10 @@
-const { Rcon } = require('rcon-client');
+const { Client } = require('discord.js');
+const Rcon = require('rcon-client').Rcon;
 
 // Obtener servidores desde .env
 const MAP_SERVERS = process.env.MAP_SERVERS || '';
 const CATEGORY_ID = process.env.CATEGORY_ID;
-const GUILD_ID = process.env.GUILD_ID;
+const RCON_PASSWORD = process.env.ARK_RCON_PASSWORD || null;
 
 function parseMapServers() {
     const servers = [];
@@ -15,9 +16,9 @@ function parseMapServers() {
 }
 
 async function updateServerStatus(client) {
-    if (!client) return console.error("El client no está definido en updateServerStatus");
+    if (!client) return console.error('Cliente no definido para updateServerStatus');
 
-    const guild = await client.guilds.fetch(GUILD_ID);
+    const guild = await client.guilds.fetch(process.env.GUILD_ID);
     const category = guild.channels.cache.get(CATEGORY_ID);
 
     if (!category) {
@@ -28,7 +29,7 @@ async function updateServerStatus(client) {
     const servers = parseMapServers();
 
     for (const server of servers) {
-        let channel = guild.channels.cache.find(c => c.name === server.name.toUpperCase());
+        let channel = guild.channels.cache.find(c => c.name.startsWith(server.name.toUpperCase()));
 
         // Si no existe el canal, lo creamos automáticamente
         if (!channel) {
@@ -41,17 +42,22 @@ async function updateServerStatus(client) {
         }
 
         let status = 'Offline';
-        try {
-            const rcon = await Rcon.connect({
-                host: server.host,
-                port: server.port,
-                password: process.env.ARK_RCON_PASSWORD
-            });
-            await rcon.send('listplayers');
-            status = 'Online';
-            rcon.end();
-        } catch {
-            status = 'Offline';
+
+        if (!RCON_PASSWORD) {
+            status = 'Sin RCON';
+        } else {
+            try {
+                const rcon = await Rcon.connect({
+                    host: server.host,
+                    port: server.port,
+                    password: RCON_PASSWORD
+                });
+                await rcon.send('listplayers');
+                status = 'Online';
+                rcon.end();
+            } catch {
+                status = 'Offline';
+            }
         }
 
         try {
@@ -63,13 +69,10 @@ async function updateServerStatus(client) {
     }
 }
 
+// Función que inicia el ciclo de actualización
 async function startServerStatus(client) {
-    if (!client) return;
-    console.log("Iniciando actualización inmediata de servidores...");
-    await updateServerStatus(client);
-
-    // Ejecutar cada 30 segundos
-    setInterval(() => updateServerStatus(client), 30000);
+    await updateServerStatus(client); // Actualización inmediata
+    setInterval(() => updateServerStatus(client), 30000); // Cada 30s
 }
 
 module.exports = { startServerStatus };
