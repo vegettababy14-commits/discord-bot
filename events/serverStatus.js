@@ -1,32 +1,25 @@
-const net = require("net");
 const fs = require("fs");
+const Gamedig = require("gamedig");
 
 const config = JSON.parse(fs.readFileSync("./config.json", "utf8"));
 
-async function checkServer(ip, port, timeout = 2000) {
-  return new Promise((resolve) => {
-    const socket = new net.Socket();
-    let status = false;
-
-    socket.setTimeout(timeout);
-
-    socket.on("connect", () => {
-      status = true;
-      socket.destroy();
+async function checkServer(server) {
+  try {
+    const state = await Gamedig.query({
+      type: server.type,  // 'ark', 'minecraft', 'rust', etc.
+      host: server.ip,
+      port: server.port
     });
-
-    socket.on("timeout", () => socket.destroy());
-    socket.on("error", () => {});
-    socket.on("close", () => resolve(status));
-
-    socket.connect(port, ip);
-  });
+    return { online: true, players: state.players.length };
+  } catch (err) {
+    return { online: false, players: 0 };
+  }
 }
 
 async function startServerStatus(client) {
   console.log("Iniciando sistema de estado de servidores...");
 
-  // Obtener la guild por ID (mejor que usar first)
+  // Obtener la guild por ID
   const guild = client.guilds.cache.get(config.guildId);
   if (!guild) {
     console.error("No se encontró la guild. Verifica guildId en config.json");
@@ -70,17 +63,17 @@ async function startServerStatus(client) {
 
     for (const server of config.servers) {
       try {
-        const online = await checkServer(server.ip, server.port);
+        const { online, players } = await checkServer(server);
 
         // Renombrar canal de voz
         const channel = guild.channels.cache.get(server.channelId);
         if (channel && channel.type === 2) {
           const emoji = online ? "✅" : "🛑";
-          await channel.setName(`${emoji} ${server.name}`);
+          await channel.setName(`${emoji} ${server.name} ${online ? `(${players})` : ""}`);
         }
 
         // Texto de resumen
-        summary += `${online ? "✅" : "🛑"} **${server.name}**\n`;
+        summary += `${online ? "✅" : "🛑"} **${server.name}** ${online ? `(${players})` : ""}\n`;
       } catch (err) {
         console.error(`Error actualizando ${server.name}:`, err);
       }
