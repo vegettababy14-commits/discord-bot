@@ -1,91 +1,69 @@
-// serverStatus.js
-const { Client, GatewayIntentBits, ChannelType } = require('discord.js');
+const client = require('../index.js');
+const { Guild } = require('discord.js');
 const Rcon = require('rcon-client').Rcon;
-const client = require('./index.js'); // tu cliente exportado desde index.js
 
-const MAP_SERVERS = process.env.MAP_SERVERS; // "Aberration:IP:PORT,TheIsland:IP:PORT,..."
+// Obtener servidores desde .env
+const MAP_SERVERS = process.env.MAP_SERVERS || '';
 const CATEGORY_ID = process.env.CATEGORY_ID;
 
-if (!MAP_SERVERS || !CATEGORY_ID) {
-  console.error('❌ MAP_SERVERS o CATEGORY_ID no definidos en .env');
-  process.exit(1);
-}
-
-// Parseamos los mapas
 function parseMapServers() {
-  const mapList = {};
-  MAP_SERVERS.split(',').forEach(entry => {
-    const [name, host, port] = entry.split(':');
-    if (name && host && port) {
-      mapList[name] = { host, port: Number(port) };
-    }
-  });
-  return mapList;
-}
-
-const maps = parseMapServers();
-
-// Función para crear o actualizar el canal de voz
-async function updateMapChannel(mapName, status) {
-  const guild = client.guilds.cache.get(process.env.GUILD_ID);
-  if (!guild) return console.error('❌ Guild no encontrada');
-
-  const category = guild.channels.cache.get(CATEGORY_ID);
-  if (!category || category.type !== ChannelType.GuildCategory)
-    return console.error('❌ Category inválida');
-
-  // Buscar canal de voz existente
-  let channel = guild.channels.cache.find(
-    c => c.name.toLowerCase().includes(mapName.toLowerCase()) && c.type === ChannelType.GuildVoice
-  );
-
-  // Si no existe, lo creamos
-  if (!channel) {
-    channel = await guild.channels.create({
-      name: `${mapName}: ${status}`,
-      type: ChannelType.GuildVoice,
-      parent: CATEGORY_ID,
+    const servers = [];
+    MAP_SERVERS.split(',').forEach(entry => {
+        const [name, host, port] = entry.split(':');
+        servers.push({ name, host, port: parseInt(port) });
     });
-    console.log(`✅ Canal creado para ${mapName}`);
-    return;
-  }
-
-  // Si existe, actualizamos su nombre
-  await channel.setName(`${mapName}: ${status}`);
-  console.log(`🔄 ${mapName} actualizado: ${status}`);
+    return servers;
 }
 
-// Función para comprobar el estado del servidor vía RCON
-async function checkServer(map) {
-  try {
-    const rcon = await Rcon.connect({
-      host: map.host,
-      port: map.port,
-    });
-    await rcon.end();
-    return 'Online';
-  } catch (e) {
-    return 'Offline';
-  }
-}
-
-// Función principal
 async function updateServerStatus() {
-  for (const [mapName, mapInfo] of Object.entries(maps)) {
-    const status = await checkServer(mapInfo);
-    await updateMapChannel(mapName, status);
-  }
+    const guild = await client.guilds.fetch(process.env.GUILD_ID);
+    const category = guild.channels.cache.get(CATEGORY_ID);
+
+    if (!category) {
+        console.log('No se encontró la categoría definida en CATEGORY_ID');
+        return;
+    }
+
+    const servers = parseMapServers();
+
+    for (const server of servers) {
+        let channel = guild.channels.cache.find(c => c.name === server.name.toUpperCase());
+
+        // Si no existe el canal, lo creamos automáticamente
+        if (!channel) {
+            channel = await guild.channels.create({
+                name: server.name.toUpperCase(),
+                type: 2, // 2 = GUILD_VOICE
+                parent: CATEGORY_ID,
+            });
+            console.log(`Canal de voz creado para ${server.name}`);
+        }
+
+        let status = 'Offline';
+        try {
+            const rcon = await Rcon.connect({
+                host: server.host,
+                port: server.port,
+                password: process.env.ARK_RCON_PASSWORD
+            });
+            await rcon.send('listplayers');
+            status = 'Online';
+            rcon.end();
+        } catch {
+            status = 'Offline';
+        }
+
+        try {
+            await channel.setName(`${server.name.toUpperCase()} - ${status}`);
+            console.log(`ARK actualizado: ${status}`);
+        } catch (err) {
+            console.error(`Error actualizando canal ${server.name}:`, err.message);
+        }
+    }
 }
 
-// Iniciamos cuando el cliente esté listo
-if (client.isReady()) {
-  updateServerStatus();
-  setInterval(updateServerStatus, 60_000); // cada 1 minuto
-} else {
-  client.once('clientReady', () => {
-    updateServerStatus();
-    setInterval(updateServerStatus, 60_000);
-  });
-}
+// Ejecutar cada 30s
+setInterval(updateServerStatus, 30000);
 
-module.exports = { updateServerStatus };
+// Ejecutar al iniciar el bot
+client.on('clientReady', updateServerStatus);
