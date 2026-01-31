@@ -1,9 +1,7 @@
-const Gamedig = require("gamedig").default; // <-- importante .default
+require("dotenv").config();
+const Gamedig = require("gamedig").default; // <- clave .default
 
-const servers = [
-  "TheIsland:127.0.0.1:27015",
-  "Aberration:127.0.0.1:27020"
-];
+const servers = process.env.MAP_SERVERS.split(",");
 
 async function checkServers() {
   for (const entry of servers) {
