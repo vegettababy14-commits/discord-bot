@@ -1,6 +1,5 @@
-// check-servers.js
 require("dotenv").config();
-const Gamedig = (...args) => require("gamedig").query(...args); // <-- workaround para CommonJS
+const Gamedig = require("gamedig"); // ya funciona con v2
 
 const servers = process.env.MAP_SERVERS.split(",");
 
@@ -10,7 +9,7 @@ async function checkServers() {
     console.log(`🔎 Comprobando servidor: ${mapName} (${ip}:${port})...`);
 
     try {
-      const state = await Gamedig({
+      const state = await Gamedig.query({
         type: "arkse",
         host: ip,
         port: Number(port)
