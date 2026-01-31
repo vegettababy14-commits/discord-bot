@@ -1,8 +1,7 @@
-const { Rcon } = require('rcon-client');
+const Gamedig = require('gamedig');
 
 const CATEGORY_ID = process.env.CATEGORY_ID;
 const GUILD_ID = process.env.GUILD_ID;
-const RCON_PASSWORD = process.env.ARK_RCON_PASSWORD || null;
 
 const MAP_SERVERS = process.env.MAP_SERVERS
   .split(',')
@@ -19,12 +18,11 @@ async function updateServerStatus(client) {
   const guild = await client.guilds.fetch(GUILD_ID);
   const category = guild.channels.cache.get(CATEGORY_ID);
 
-  if (!category) {
+  if (!category || !category.isGuildCategory()) {
     console.error('❌ CATEGORY_ID no es una categoría válida');
     return;
   }
 
-  // Solo canales de voz dentro de la categoría
   const voiceChannels = category.children.cache.filter(c => c.isVoiceBased());
 
   for (const server of MAP_SERVERS) {
@@ -39,23 +37,18 @@ async function updateServerStatus(client) {
 
     let status = 'Offline';
 
-    if (!RCON_PASSWORD) {
-      status = 'Sin RCON';
-    } else {
-      try {
-        const rcon = await Rcon.connect({
-          host: server.host,
-          port: server.port,
-          password: RCON_PASSWORD,
-          timeout: 3000,
-        });
+    try {
+      await Gamedig.query({
+        type: 'arkse',
+        host: server.host,
+        port: server.port,
+        socketTimeout: 3000,
+        maxAttempts: 1,
+      });
 
-        await rcon.send('listplayers');
-        status = 'Online';
-        rcon.end();
-      } catch {
-        status = 'Offline';
-      }
+      status = 'Online';
+    } catch {
+      status = 'Offline';
     }
 
     const newName = `${server.name} - ${status}`;
