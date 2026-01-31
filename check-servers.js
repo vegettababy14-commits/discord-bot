@@ -1,5 +1,5 @@
 require("dotenv").config();
-const Gamedig = require("gamedig").default; // <- clave .default
+const Gamedig = require("gamedig").default;  // <- clave .default
 
 const servers = process.env.MAP_SERVERS.split(",");
 
