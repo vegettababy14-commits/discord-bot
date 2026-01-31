@@ -85,8 +85,13 @@ async function updateServerStatus(client) {
 
 // ===== LOOP =====
 function startServerStatus(client) {
-  updateServerStatus(client);
-  setInterval(() => updateServerStatus(client), CHECK_INTERVAL);
+  // Devolver la promesa de la primera actualización
+  const firstUpdate = updateServerStatus(client);
+
+  // Configurar loop
+  setInterval(() => updateServerStatus(client).catch(console.error), CHECK_INTERVAL);
+
+  return firstUpdate; // ahora se puede usar .catch() correctamente
 }
 
 module.exports = { startServerStatus };
