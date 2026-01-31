@@ -1,39 +1,21 @@
 const { ChannelType } = require("discord.js");
-const dgram = require("dgram");
+const Gamedig = require("gamedig");
 
 // ===== CONFIG =====
 const CHECK_INTERVAL = 60 * 1000; // 1 minuto
 
 // ===== FUNCION: comprobar si el servidor ARK responde =====
-function checkArkServer(ip, port, timeout = 3000) {
-  return new Promise((resolve) => {
-    const socket = dgram.createSocket("udp4");
-    const message = Buffer.from([
-      0xff, 0xff, 0xff, 0xff,
-      0x54,
-      ...Buffer.from("Source Engine Query"),
-      0x00
-    ]);
-
-    const timer = setTimeout(() => {
-      socket.close();
-      resolve(false);
-    }, timeout);
-
-    socket.on("message", () => {
-      clearTimeout(timer);
-      socket.close();
-      resolve(true);
+async function checkArkServer(ip, port) {
+  try {
+    const state = await Gamedig.query({
+      type: "arkse",
+      host: ip,
+      port: Number(port)
     });
-
-    socket.send(message, port, ip, (err) => {
-      if (err) {
-        clearTimeout(timer);
-        socket.close();
-        resolve(false);
-      }
-    });
-  });
+    return true; // el servidor respondió
+  } catch (err) {
+    return false; // no respondió o está offline
+  }
 }
 
 // ===== FUNCION PRINCIPAL =====
@@ -85,13 +67,15 @@ async function updateServerStatus(client) {
 
 // ===== LOOP =====
 function startServerStatus(client) {
-  // Devolver la promesa de la primera actualización
+  // Primera actualización y devolver promesa
   const firstUpdate = updateServerStatus(client);
 
-  // Configurar loop
-  setInterval(() => updateServerStatus(client).catch(console.error), CHECK_INTERVAL);
+  // Loop con captura de errores
+  setInterval(() => {
+    updateServerStatus(client).catch(console.error);
+  }, CHECK_INTERVAL);
 
-  return firstUpdate; // ahora se puede usar .catch() correctamente
+  return firstUpdate;
 }
 
 module.exports = { startServerStatus };
