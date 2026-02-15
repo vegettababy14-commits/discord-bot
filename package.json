@@ -19,10 +19,8 @@
   },
   "homepage": "https://github.com/vegettababy14-commits/discord-bot#readme",
   "dependencies": {
-    "canvas": "^3.2.0",
+    "@napi-rs/canvas": "^0.1.92",
     "discord.js": "^14.25.1",
-    "dotenv": "^17.2.3",
-    "gamedig": "^5.3.2",
-    "rcon": "^1.1.0"
+    "dotenv": "^17.3.1"
   }
 }

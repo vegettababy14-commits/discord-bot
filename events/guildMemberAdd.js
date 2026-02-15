@@ -1,34 +1,35 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
-module.exports = {
-    name: 'guildMemberAdd',
-    async execute(member, client) {
+module.exports = (client) => {
+    client.on('guildMemberAdd', async (member) => {
         try {
-            const VERIFICATION_CHANNEL_ID = '1437110882545959145'; // tu canal de verificación
-            const channel = member.guild.channels.cache.get(VERIFICATION_CHANNEL_ID);
-            if (!channel) return;
+            // Canal de verificación
+            const canal = member.guild.channels.cache.get(process.env.CANAL_VERIFICACION_ID);
+            if (!canal) return console.warn('❌ Canal de verificación no encontrado');
 
-            // Crear botones para los juegos
-            const row = new ActionRowBuilder()
+            // Botones
+            const botones = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
-                        .setCustomId('game_ark')
-                        .setLabel('ARK')
+                        .setCustomId('rol_a')
+                        .setLabel('Opción A')
                         .setStyle(ButtonStyle.Primary),
                     new ButtonBuilder()
-                        .setCustomId('game_rust')
-                        .setLabel('Rust')
-                        .setStyle(ButtonStyle.Primary)
+                        .setCustomId('rol_b')
+                        .setLabel('Opción B')
+                        .setStyle(ButtonStyle.Secondary),
                 );
 
-            // Enviar mensaje al canal de verificación
-            await channel.send({
-                content: `¡Bienvenido ${member.user.tag}! Haz click en el botón correspondiente para verificarte y obtener acceso al juego deseado:`,
-                components: [row],
-            });
+            // Embed de bienvenida
+            const embed = new EmbedBuilder()
+                .setTitle('¡Bienvenido al servidor!')
+                .setDescription(`${member.user}, pulsa uno de los botones para verificarte y obtener acceso.`)
+                .setColor('Blue')
+                .setTimestamp();
 
+            await canal.send({ embeds: [embed], components: [botones] });
         } catch (error) {
-            console.error(`No pude enviar mensaje al canal de verificación para ${member.user.tag}:`, error);
+            console.error('❌ Error enviando mensaje de verificación automático:', error);
         }
-    },
+    });
 };
